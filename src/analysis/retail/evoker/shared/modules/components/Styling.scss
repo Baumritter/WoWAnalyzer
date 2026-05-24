@@ -1,5 +1,6 @@
 @use 'sass:color';
 @use 'interface/Theme.scss';
+@use 'interface/guide/Guide';
 
 .button {
   background-color: #fab700;
@@ -55,4 +56,25 @@
 .graph-explanations {
   margin-top: 1em;
   align-self: start;
+}
+
+.perfectCast {
+  background-color: Guide.$perfect-perf-color;
+  color: black;
+  padding: 0 3px;
+}
+.goodCast {
+  background-color: Guide.$good-perf-color;
+  color: black;
+  padding: 0 3px;
+}
+.okCast {
+  background-color: Guide.$ok-perf-color;
+  color: black;
+  padding: 0 3px;
+}
+.badCast {
+  background-color: Guide.$bad-perf-color;
+  color: white;
+  padding: 0 3px;
 }

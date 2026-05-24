@@ -87,6 +87,7 @@ import {
 import AlwaysBeCasting from 'parser/shared/modules/AlwaysBeCasting';
 import CancelledCasts from 'parser/shared/modules/CancelledCasts';
 import EmpowerAnalyzer from '../shared/modules/core/EmpowerAnalyzer';
+import Bombardments from '../shared/modules/talents/hero/scalecommander/Bombardments';
 
 class CombatLogParser extends MainCombatLogParser {
   static specModules = {
@@ -152,6 +153,7 @@ class CombatLogParser extends MainCombatLogParser {
     motesOfPossibility: MotesOfPossibility,
     duplicate: Duplicate,
     mightyInferno: MightyInferno,
+    bombardments: Bombardments,
 
     // hero talents
     mightOfTheBlackDragonflight: MightOfTheBlackDragonflight,

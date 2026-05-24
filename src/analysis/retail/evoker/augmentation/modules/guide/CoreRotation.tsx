@@ -38,6 +38,7 @@ export function CoreRotationSection({ modules, events, info }: GuideProps<typeof
       <HideGoodCastsToggle id="hide-good-casts-rotations" />
 
       {modules.sandsOfTime.guideSubsection()}
+      {modules.bombardments.guideSubsection()}
 
       <AlwaysBeCastingSection modules={modules} events={events} info={info} />
 
