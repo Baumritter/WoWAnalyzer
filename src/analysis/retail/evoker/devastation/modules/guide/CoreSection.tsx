@@ -84,6 +84,7 @@ export function CoreSection({ modules, events, info }: GuideProps<typeof CombatL
           fightEnd={info.fightEnd}
         />
       </SubSection>
+      <SubSection title="Consume Flame">{modules.consumeFlame.guideSubsection()}</SubSection>
     </Section>
   );
 }
