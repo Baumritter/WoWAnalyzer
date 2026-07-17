@@ -54,22 +54,20 @@ interface FBDebuff {
   target: string;
   end: number;
 
-  died: boolean;
-  refreshed: number;
-
   disintegrateHits: number;
   pyreHits: number;
 
   consumedDuration: number;
-  activeDuration: number;
   extraDuration: number;
   maximumDuration: number;
+  lastEmpower: number;
+  pandemic: number;
 }
 
-interface AverageCounts {
-  consumedDuration: number;
-  activeDuration: number;
-  maximumDuration: number;
+interface OverallCounts {
+  consumedDurationAvg: number;
+  maximumDurationAvg: number;
+  pandemicCounts: number;
 }
 
 class ConsumeFlame extends Analyzer {
@@ -119,12 +117,15 @@ class ConsumeFlame extends Analyzer {
     debuffEvents.forEach((e) => {
       const debuff = this.getActiveDebuffByTargetString(e);
       if (debuff !== undefined) {
-        debuff.refreshed++;
-        debuff.maximumDuration =
-          FIRE_BREATH_DOT_DURATIONS[event.empowermentLevel - 1] +
-          this.fireBreathDotIncrease +
-          debuff.refreshed *
-            (FIRE_BREATH_DOT_DURATIONS[event.empowermentLevel - 1] + this.fireBreathDotIncrease);
+        const remainingDuration = debuff.maximumDuration - this.getConsumedDuration(debuff);
+        const maxPandemic = this.getFireBreathMaxDuration(event.empowermentLevel) * 0.3;
+        const actualPandemic = maxPandemic - remainingDuration;
+
+        debuff.maximumDuration +=
+          (remainingDuration >= maxPandemic ? actualPandemic : 0) +
+          this.getFireBreathMaxDuration(event.empowermentLevel);
+        debuff.lastEmpower = event.empowermentLevel;
+        debuff.pandemic++;
       } else {
         this.debuffEvents.push({
           cast: event,
@@ -133,13 +134,11 @@ class ConsumeFlame extends Analyzer {
           disintegrateHits: 0,
           pyreHits: 0,
           end: 0,
-          died: false,
-          refreshed: 0,
-          activeDuration: 0,
           consumedDuration: 0,
           extraDuration: 0,
-          maximumDuration:
-            FIRE_BREATH_DOT_DURATIONS[event.empowermentLevel - 1] + this.fireBreathDotIncrease,
+          maximumDuration: this.getFireBreathMaxDuration(event.empowermentLevel),
+          lastEmpower: event.empowermentLevel,
+          pandemic: 0,
         });
         addedDebuffs++;
       }
@@ -177,7 +176,6 @@ class ConsumeFlame extends Analyzer {
     const debuff = this.getActiveDebuffByTargetString(event);
     if (debuff !== undefined) {
       debuff.end = event.timestamp;
-      debuff.died = true;
     }
   }
 
@@ -193,12 +191,17 @@ class ConsumeFlame extends Analyzer {
         (x.end === 0 || event.timestamp < x.end + FIREBREATH_DEBUFF_END_BUFFER),
     );
   }
+  private getFireBreathMaxDuration(empowerLevel: number): number {
+    return FIRE_BREATH_DOT_DURATIONS[empowerLevel - 1] + this.fireBreathDotIncrease;
+  }
+  private getConsumedDuration(debuff: FBDebuff): number {
+    return (debuff.disintegrateHits + debuff.pyreHits * 4) * 1000;
+  }
 
   finalize() {
     this.windows.forEach((w) => {
       w.debuffs.forEach((d) => {
-        d.activeDuration = d.end - w.event.timestamp;
-        d.consumedDuration = (d.disintegrateHits + d.pyreHits * 4) * 1000;
+        d.consumedDuration = this.getConsumedDuration(d);
       });
     });
   }
@@ -214,25 +217,24 @@ class ConsumeFlame extends Analyzer {
     return `${Math.round(timespan / 100) / 10}s`;
   }
 
-  private buildAverages(window: FBWindow): AverageCounts {
+  private buildOverallStats(window: FBWindow): OverallCounts {
     let MaximumDuration = 0,
       ConsumedDuration = 0,
-      ActiveDuration = 0;
+      PandemicCount = 0;
 
     window.debuffs.forEach((debuff) => {
       MaximumDuration += debuff.maximumDuration;
       ConsumedDuration += debuff.consumedDuration;
-      ActiveDuration += debuff.activeDuration;
+      if (debuff.pandemic > PandemicCount) PandemicCount = debuff.pandemic;
     });
 
     ConsumedDuration = ConsumedDuration / window.debuffs.length;
-    ActiveDuration = ActiveDuration / window.debuffs.length;
     MaximumDuration = MaximumDuration / window.debuffs.length;
 
     return {
-      activeDuration: ActiveDuration,
-      consumedDuration: ConsumedDuration,
-      maximumDuration: MaximumDuration,
+      consumedDurationAvg: ConsumedDuration,
+      maximumDurationAvg: MaximumDuration,
+      pandemicCounts: PandemicCount,
     };
   }
   private buildDebuffTargetSequence(window: FBWindow): CastInSequence[] {
@@ -249,11 +251,10 @@ class ConsumeFlame extends Analyzer {
       const stats = (
         <>
           <ul>
-            <li>Active Duration: {this.formatSeconds(debuff.activeDuration)}</li>
             <li>Consumed Duration: {this.formatSeconds(debuff.consumedDuration)}</li>
             <li>Maximum Duration: {this.formatSeconds(debuff.maximumDuration)}</li>
+            {debuff.pandemic > 0 && <li>Extensions: {debuff.pandemic}</li>}
           </ul>
-          {debuff.died ? <p>Target died early.</p> : null}
         </>
       );
 
@@ -300,30 +301,64 @@ class ConsumeFlame extends Analyzer {
   }
   private buildCastInfo(): PerCastData[] {
     return this.windows.map((window): PerCastData => {
-      const averageCounts = this.buildAverages(window);
+      const overallCount = this.buildOverallStats(window);
       const debuffs = this.buildDebuffTargetSequence(window);
       const performance = this.getAverageQualitativePerformance(
         debuffs.map((debuff) => debuff.performance!),
       );
 
+      const stats = [
+        {
+          value: this.formatSeconds(overallCount.consumedDurationAvg),
+          label: 'Consumed Duration',
+          tooltip: (
+            <>
+              Average amount of duration consumed with <SpellLink spell={SPELLS.DISINTEGRATE} /> and{' '}
+              <SpellLink spell={SPELLS.PYRE} />.
+            </>
+          ),
+        },
+        {
+          value: this.formatSeconds(overallCount.maximumDurationAvg),
+          label: 'Maximum Duration',
+          tooltip: (
+            <>
+              Maximum amount of duration that <SpellLink spell={SPELLS.FIRE_BREATH} /> could have
+              been active for. This is based on empower rank and refreshes of the debuffs.
+            </>
+          ),
+        },
+      ];
+      if (overallCount.pandemicCounts > 0) {
+        stats.push({
+          value: overallCount.pandemicCounts.toFixed(0),
+          label: 'Extensions',
+          tooltip: (
+            <>
+              Amount of extensions of the initial <SpellLink spell={SPELLS.FIRE_BREATH} /> buff.
+            </>
+          ),
+        });
+      }
+
       return {
         performance: performance,
         timestamp: this.owner.formatTimestamp(window.event.timestamp),
         tooltip:
-          averageCounts.maximumDuration * CONSUME_PERFECT_THRESHOLD <=
-          averageCounts.consumedDuration ? (
+          overallCount.maximumDurationAvg * CONSUME_PERFECT_THRESHOLD <=
+          overallCount.consumedDurationAvg ? (
             <>
               Consumed more than <b>{CONSUME_PERFECT_THRESHOLD * 100}%</b> of this{' '}
               <SpellLink spell={SPELLS.FIRE_BREATH} /> cast. Perfect!
             </>
-          ) : averageCounts.maximumDuration * CONSUME_GOOD_THRESHOLD <=
-            averageCounts.consumedDuration ? (
+          ) : overallCount.maximumDurationAvg * CONSUME_GOOD_THRESHOLD <=
+            overallCount.consumedDurationAvg ? (
             <>
               Consumed more than <b>{CONSUME_GOOD_THRESHOLD * 100}%</b> of this{' '}
               <SpellLink spell={SPELLS.FIRE_BREATH} /> cast. Good Job.
             </>
-          ) : averageCounts.maximumDuration * CONSUME_OK_THRESHOLD <=
-            averageCounts.consumedDuration ? (
+          ) : overallCount.maximumDurationAvg * CONSUME_OK_THRESHOLD <=
+            overallCount.consumedDurationAvg ? (
             <>
               Consumed more than <b>{CONSUME_OK_THRESHOLD * 100}%</b> of this{' '}
               <SpellLink spell={SPELLS.FIRE_BREATH} /> cast. Ok.
@@ -334,38 +369,7 @@ class ConsumeFlame extends Analyzer {
               <SpellLink spell={SPELLS.FIRE_BREATH} /> cast.
             </>
           ),
-        stats: [
-          {
-            value: this.formatSeconds(averageCounts.consumedDuration),
-            label: 'Consumed Duration',
-            tooltip: (
-              <>
-                Average amount of duration consumed with <SpellLink spell={SPELLS.DISINTEGRATE} />{' '}
-                and <SpellLink spell={SPELLS.PYRE} />.
-              </>
-            ),
-          },
-          {
-            value: this.formatSeconds(averageCounts.activeDuration),
-            label: 'Active Duration',
-            tooltip: (
-              <>
-                Average amount of duration that <SpellLink spell={SPELLS.FIRE_BREATH} /> was active
-                for. This depends on how fast the debuff was consumed on all affected targets.
-              </>
-            ),
-          },
-          {
-            value: this.formatSeconds(averageCounts.maximumDuration),
-            label: 'Maximum Duration',
-            tooltip: (
-              <>
-                Maximum amount of duration that <SpellLink spell={SPELLS.FIRE_BREATH} /> could have
-                been active for. This is based on empower rank and refreshes of the debuffs.
-              </>
-            ),
-          },
-        ],
+        stats: stats,
         additionalContent:
           window.debuffs.length > 0
             ? {
@@ -406,11 +410,9 @@ class ConsumeFlame extends Analyzer {
           <strong>
             <SpellLink spell={SPELLS.CONSUME_FLAME_DAMAGE} />
           </strong>{' '}
-          is the major component of Flameshaper and is responsible for around a third of your total
-          damage. Correct play around it includes efficiently consuming{' '}
-          <SpellLink spell={SPELLS.FIRE_BREATH} /> from mobs affected by it. This is especially
-          tricky in spread-cleave and two target situations and requires some attention to not
-          neglect any targets.
+          is the major component of Flameshaper and is responsible for around large part of your
+          total damage. Correct play around it includes efficiently consuming{' '}
+          <SpellLink spell={SPELLS.FIRE_BREATH} /> from mobs affected by it.
         </p>
         {legend}
       </>
