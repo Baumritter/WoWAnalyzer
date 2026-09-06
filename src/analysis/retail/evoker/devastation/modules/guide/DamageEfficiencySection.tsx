@@ -6,6 +6,7 @@ import SPELLS from 'common/SPELLS';
 
 import PassFailBar from 'interface/guide/components/PassFailBar';
 import { ExplanationAndDataSubSection } from 'interface/guide/components/ExplanationRow';
+import { TIERS } from 'game/TIERS';
 import RESOURCE_TYPES from 'game/RESOURCE_TYPES';
 import { IMMINENT_DESTRUCTION_INITIAL_STACKS_DEVA } from 'analysis/retail/evoker/shared';
 import { STRAFING_RUN_DURATION } from 'analysis/retail/evoker/devastation/constants';
@@ -45,6 +46,8 @@ export function DamageEfficiency(props: GuideProps<typeof CombatLogParser>) {
 }
 
 function NoWastedProcsSubsection({ modules, info }: GuideProps<typeof CombatLogParser>) {
+  const hasMID1TierSet = info.combatant.has2PieceByTier(TIERS.MID1);
+
   return (
     <SubSection title="No Wasted Procs">
       <p>
@@ -75,7 +78,33 @@ function NoWastedProcsSubsection({ modules, info }: GuideProps<typeof CombatLogP
           />
         }
       />
-      {modules.livingFlame.guideSubsection}
+      {!hasMID1TierSet && (
+        <ExplanationAndDataSubSection
+          explanationPercent={EXPLANATION_PERCENTAGE}
+          explanation={
+            <p>
+              <SpellLink spell={TALENTS_EVOKER.BURNOUT_TALENT} /> procs allow you to cast{' '}
+              <SpellLink spell={SPELLS.LIVING_FLAME_CAST} /> instantly.
+              <div>
+                <strong>
+                  Ideally none should go to waste, but some may drop during an intense{' '}
+                  <SpellLink spell={TALENTS_EVOKER.DRAGONRAGE_TALENT} /> window.
+                </strong>
+              </div>
+            </p>
+          }
+          data={
+            <PassFail
+              value={modules.burnout.consumedProcs}
+              total={Math.max(modules.burnout.procs, modules.burnout.consumedProcs)}
+              passed={
+                modules.burnout.consumedProcs ===
+                Math.max(modules.burnout.procs, modules.burnout.consumedProcs)
+              }
+            />
+          }
+        />
+      )}
     </SubSection>
   );
 }

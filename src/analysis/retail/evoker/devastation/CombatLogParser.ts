@@ -82,7 +82,6 @@ import MID2Devastation4P from './modules/midnight/MID2Devastation4P';
 import RisingFury from './modules/talents/RisingFury';
 import DragonrageNormalizer from './modules/normalizers/DragonrageNormalizer';
 import EmpowerAnalyzer from '../shared/modules/core/EmpowerAnalyzer';
-import LivingFlame from './modules/abilities/LivingFlame';
 
 class CombatLogParser extends MainCombatLogParser {
   static specModules = {
@@ -153,7 +152,6 @@ class CombatLogParser extends MainCombatLogParser {
     shatteringStars: ShatteringStars,
     starSalvo: StarSalvo,
     risingFury: RisingFury,
-    livingFlame: LivingFlame,
 
     // hero talents
     expandedLungs: ExpandedLungs,
