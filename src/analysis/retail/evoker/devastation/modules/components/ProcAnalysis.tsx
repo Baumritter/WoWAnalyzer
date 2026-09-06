@@ -53,6 +53,7 @@ export function ProcAnalysisWrapper({
       <>
         <CastOverview
           spell={analysisData.spell}
+          title="Overview"
           stats={analysisData.stats || []}
           additionalContent={analysisData.additionalContent || undefined}
         />
@@ -68,7 +69,7 @@ export function ProcAnalysisWrapper({
       {overview}
       <CastSummary
         spell={analysisData.spell}
-        title={`${analysisData.spell.name} Uses`}
+        title={`Casts`}
         casts={analysisData.casts}
         showBreakdown
       />
