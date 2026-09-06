@@ -4,6 +4,7 @@ import TALENTS from 'common/TALENTS/evoker';
 import Events, {
   ApplyBuffEvent,
   ApplyBuffStackEvent,
+  FightEndEvent,
   RemoveBuffEvent,
   RemoveBuffStackEvent,
 } from 'parser/core/Events';
@@ -23,6 +24,13 @@ import SPECS from 'game/SPECS';
 import { getImminentDestructionConsumeEvent } from '../normalizers/ImminentDestructionCastLinkNormalizer';
 import { InformationIcon } from 'interface/icons';
 import SpellLink from 'interface/SpellLink';
+import {
+  AnalysisData,
+  PerformanceResolver,
+} from 'analysis/retail/evoker/devastation/modules/components/ProcAnalysis';
+import { CastEvaluation } from 'interface/guide/components';
+import { QualitativePerformance } from 'parser/ui/QualitativePerformance';
+import { formatPercentage } from 'common/format';
 
 /**
  * Devastation:
@@ -48,6 +56,7 @@ class ImminentDestruction extends Analyzer {
     ? IMMINENT_DESTRUCTION_INITIAL_STACKS_DEVA
     : IMMINENT_DESTRUCTION_INITIAL_STACKS_AUG;
 
+  casts: CastEvaluation[] = [];
   currentBuffStacks = 0;
   wastedBuffStacks = 0;
   totalBuffStacks = 0;
@@ -74,6 +83,7 @@ class ImminentDestruction extends Analyzer {
       Events.applybuffstack.by(SELECTED_PLAYER).spell(this.buffSpell),
       this.onApplyBuffStack,
     );
+    this.addEventListener(Events.fightend, this.onFightEnd);
   }
 
   private onApplyBuff(_event: ApplyBuffEvent) {
@@ -95,14 +105,15 @@ class ImminentDestruction extends Analyzer {
       );
     }
 
+    this.castAnalysis(event.timestamp, QualitativePerformance.Good);
     this.currentBuffStacks = event.stack;
   }
 
   private onRemoveBuff(event: RemoveBuffEvent) {
     if (!this.handleReduction(event)) {
       this.wastedBuffStacks += this.currentBuffStacks * IMMINENT_DESTRUCTION_ESSENCE_REDUCTION;
-    }
-
+      this.castAnalysis(event.timestamp, QualitativePerformance.Fail);
+    } else this.castAnalysis(event.timestamp, QualitativePerformance.Good);
     this.currentBuffStacks = 0;
   }
 
@@ -118,18 +129,50 @@ class ImminentDestruction extends Analyzer {
     return true;
   }
 
-  get consumedBuffs() {
-    return this.buffStacksConsumed;
+  private onFightEnd(event: FightEndEvent) {
+    if (this.currentBuffStacks > 0) {
+      this.castAnalysis(event.timestamp, QualitativePerformance.Ok);
+    }
   }
 
-  get wastedBuffs() {
-    return this.totalBuffs - this.consumedBuffs;
+  private castAnalysis(timestamp: number, performance: QualitativePerformance) {
+    let info: string;
+
+    switch (performance) {
+      case QualitativePerformance.Fail:
+        info = `Buff expired, wasting ${this.currentBuffStacks} stack(s)`;
+        break;
+      case QualitativePerformance.Ok:
+        info = `Fight ended, leaving ${this.currentBuffStacks} stack(s) unused`;
+        break;
+      default:
+        info = 'Buff used';
+        break;
+    }
+
+    const castEntry: CastEvaluation = {
+      performance: performance,
+      timestamp: timestamp,
+      reason: info,
+    };
+
+    this.casts.push(castEntry);
   }
 
-  get totalBuffs() {
-    return this.totalBuffStacks;
+  get procUsageData(): AnalysisData {
+    return {
+      casts: this.casts,
+      spell: this.buffSpell,
+      stats: [
+        {
+          label: 'Stack Utilization',
+          value: `${formatPercentage(this.buffStacksConsumed / (this.totalBuffStacks - this.currentBuffStacks), 2)}%`,
+          tooltip: `Used ${this.buffStacksConsumed} out of ${this.totalBuffStacks - this.currentBuffStacks} (${this.totalBuffStacks}) stack(s).`,
+          performance: PerformanceResolver(this.buffStacksConsumed / this.totalBuffStacks),
+        },
+      ],
+    };
   }
-
   statistic() {
     const hasWastedBuffStacks = this.wastedBuffStacks > 0;
 
