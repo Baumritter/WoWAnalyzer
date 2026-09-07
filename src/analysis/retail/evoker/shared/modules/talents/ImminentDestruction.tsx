@@ -28,7 +28,7 @@ import {
   AnalysisData,
   PerformanceResolver,
 } from 'analysis/retail/evoker/devastation/modules/components/ProcAnalysis';
-import { CastEvaluation } from 'interface/guide/components';
+import { CastEvaluation, StackedBar, StackedBarSegment } from 'interface/guide/components';
 import { QualitativePerformance } from 'parser/ui/QualitativePerformance';
 import { formatPercentage } from 'common/format';
 
@@ -57,6 +57,7 @@ class ImminentDestruction extends Analyzer {
     : IMMINENT_DESTRUCTION_INITIAL_STACKS_AUG;
 
   casts: CastEvaluation[] = [];
+  spenders = { Disintegrate: 0, Pyre: 0, Eruption: 0 };
   currentBuffStacks = 0;
   wastedBuffStacks = 0;
   totalBuffStacks = 0;
@@ -123,6 +124,10 @@ class ImminentDestruction extends Analyzer {
       return false;
     }
 
+    if (this.isDeva)
+      if (consumeEvent.ability.guid === SPELLS.DISINTEGRATE.id) this.spenders.Disintegrate += 1;
+      else this.spenders.Pyre += 1;
+
     this.buffStacksConsumed += 1;
     this.totalEssenceReduction += IMMINENT_DESTRUCTION_ESSENCE_REDUCTION;
 
@@ -159,6 +164,32 @@ class ImminentDestruction extends Analyzer {
     this.casts.push(castEntry);
   }
 
+  private buildSpenderBar(): StackedBarSegment[] {
+    return [
+      {
+        label: 'Disintegrate',
+        value: this.spenders.Disintegrate,
+        color: 'hsl(190, 70%, 55%)',
+        tooltip: (
+          <>
+            {this.spenders.Disintegrate} <SpellLink spell={SPELLS.ESSENCE_BURST_BUFF} /> spent on{' '}
+            <SpellLink spell={SPELLS.DISINTEGRATE} />
+          </>
+        ),
+      },
+      {
+        label: 'Pyre',
+        value: this.spenders.Pyre,
+        color: 'hsl(20, 70%, 55%)',
+        tooltip: (
+          <>
+            {this.spenders.Pyre} <SpellLink spell={SPELLS.ESSENCE_BURST_BUFF} /> spent on{' '}
+            <SpellLink spell={SPELLS.PYRE} />
+          </>
+        ),
+      },
+    ];
+  }
   get procUsageData(): AnalysisData {
     return {
       casts: this.casts,
@@ -171,6 +202,12 @@ class ImminentDestruction extends Analyzer {
           performance: PerformanceResolver(this.buffStacksConsumed / this.totalBuffStacks),
         },
       ],
+      additionalContent: this.isDeva
+        ? {
+            title: 'Spender Breakdown',
+            content: <StackedBar segments={this.buildSpenderBar()} />,
+          }
+        : undefined,
     };
   }
   statistic() {

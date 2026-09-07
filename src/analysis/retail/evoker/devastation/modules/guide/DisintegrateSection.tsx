@@ -1,38 +1,14 @@
-import { GuideProps, PassFailCheckmark, Section, SubSection } from 'interface/guide';
+import { GuideProps, Section, SubSection } from 'interface/guide';
 import { SpellLink, TooltipElement } from 'interface';
 import { TALENTS_EVOKER } from 'common/TALENTS';
 import CombatLogParser from '../../CombatLogParser';
 import SPELLS from 'common/SPELLS';
 
-import PassFailBar from 'interface/guide/components/PassFailBar';
-import { ExplanationAndDataSubSection } from 'interface/guide/components/ExplanationRow';
 import { JSX } from 'react';
 import Spell from 'common/SPELLS/Spell';
 import { WarningIcon } from 'interface/icons';
-
-const EXPLANATION_PERCENTAGE = 70;
-
-function PassFail({
-  value,
-  total,
-  passed,
-  customTotal,
-}: {
-  value: number;
-  total: number;
-  passed: boolean;
-  customTotal?: number;
-}) {
-  return (
-    <div>
-      <PassFailBar pass={value} total={customTotal ?? total} />
-      &nbsp; <PassFailCheckmark pass={passed} />
-      <p>
-        {value} / {total} ({((value / total) * 100).toFixed(2)}%)
-      </p>
-    </div>
-  );
-}
+import { CastOverview } from 'interface/guide/components';
+import { QualitativePerformance } from 'parser/ui/QualitativePerformance';
 
 export function DisintegrateSection({ modules, info }: GuideProps<typeof CombatLogParser>) {
   const tickData = modules.disintegrate.tickData;
@@ -59,7 +35,7 @@ export function DisintegrateSection({ modules, info }: GuideProps<typeof CombatL
     );
   });
   const clippedSpellsContent = (
-    <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>{elements}</ul>
+    <ul style={{ listStyle: 'none', padding: '0px', margin: 0 }}>{elements}</ul>
   );
 
   return (
@@ -107,127 +83,115 @@ export function DisintegrateSection({ modules, info }: GuideProps<typeof CombatL
         </SubSection>
       </div>
       <SubSection title="Overall Tick Efficiency">
-        {tickData.regularTicks > 0 && (
-          <ExplanationAndDataSubSection
-            explanationPercent={EXPLANATION_PERCENTAGE}
-            explanation={
-              <div>
-                <b>
-                  Efficiency outside of <SpellLink spell={TALENTS_EVOKER.DRAGONRAGE_TALENT} />
-                </b>
-                {clipLogic.thresholdEarlyChainTicks > 1 || clipLogic.allowGoodClipping ? (
+        <CastOverview
+          spell={SPELLS.DISINTEGRATE}
+          title=""
+          stats={[
+            {
+              label: 'Basic Tick Efficiency',
+              value: `${tickData.regularTicks}/${tickData.totalPossibleRegularTicks}`,
+              tooltip: (
+                <div>
+                  <b>
+                    Efficiency outside of <SpellLink spell={TALENTS_EVOKER.DRAGONRAGE_TALENT} />
+                  </b>
+                  {clipLogic.thresholdEarlyChainTicks > 1 || clipLogic.allowGoodClipping ? (
+                    <p>
+                      {clipLogic.thresholdEarlyChainTicks > 1 && (
+                        <>
+                          You should be early chaining <SpellLink spell={SPELLS.DISINTEGRATE} />
+                        </>
+                      )}
+                      {clipLogic.thresholdEarlyChainTicks > 1 && clipLogic.allowGoodClipping ? (
+                        <> and you </>
+                      ) : clipLogic.allowGoodClipping ? (
+                        <>You </>
+                      ) : (
+                        <>.</>
+                      )}
+                      {clipLogic.allowGoodClipping && (
+                        <>
+                          should be clipping <SpellLink spell={SPELLS.DISINTEGRATE} /> in favor of:
+                          {clippedSpellsContent}
+                        </>
+                      )}
+                    </p>
+                  ) : (
+                    <p>You should not be dropping any ticks here.</p>
+                  )}
+                </div>
+              ),
+              performance:
+                tickData.regularTicks >= tickData.totalPossibleRegularTicks * 0.95
+                  ? QualitativePerformance.Good
+                  : QualitativePerformance.Fail,
+            },
+            {
+              label: 'Dragonrage Tick Efficiency',
+              value: `${tickData.dragonRageTicks}/${tickData.totalPossibleDragonRageTicks}`,
+              tooltip: (
+                <div>
+                  <b>
+                    Efficiency during <SpellLink spell={TALENTS_EVOKER.DRAGONRAGE_TALENT} />
+                  </b>
+                  {clipLogic.thresholdEarlyChainTicksDragonrage > 1 ||
+                  clipLogic.allowGoodClippingDragonrage ? (
+                    <p>
+                      During Dragonrage,{' '}
+                      {clipLogic.thresholdEarlyChainTicksDragonrage > 1 && (
+                        <>
+                          you should be early chaining <SpellLink spell={SPELLS.DISINTEGRATE} />
+                        </>
+                      )}
+                      {clipLogic.thresholdEarlyChainTicksDragonrage > 1 &&
+                      clipLogic.allowGoodClippingDragonrage ? (
+                        <> and you </>
+                      ) : clipLogic.allowGoodClippingDragonrage ? (
+                        <>you </>
+                      ) : (
+                        <>.</>
+                      )}
+                      {clipLogic.allowGoodClippingDragonrage && (
+                        <>
+                          should be clipping <SpellLink spell={SPELLS.DISINTEGRATE} /> in favor of{' '}
+                          <TooltipElement content={clippedSpellsContent}>
+                            high-value spells
+                          </TooltipElement>
+                          .
+                        </>
+                      )}
+                    </p>
+                  ) : (
+                    <p>During Dragonrage, you should not be dropping any ticks.</p>
+                  )}
+                </div>
+              ),
+              performance:
+                tickData.dragonRageTicks >= tickData.totalPossibleDragonRageTicks * 0.95
+                  ? QualitativePerformance.Good
+                  : QualitativePerformance.Fail,
+            },
+            {
+              label: 'Mass Disintegrate Tick Efficiency',
+              value: `${tickData.massDisintegrateTicks}/${tickData.totalPossibleMassDisintegrateTicks}`,
+              tooltip: (
+                <div>
+                  <b>
+                    Efficiency of <SpellLink spell={SPELLS.MASS_DISINTEGRATE_BUFF} />
+                  </b>
                   <p>
-                    {clipLogic.thresholdEarlyChainTicks > 1 && (
-                      <>
-                        You should be early chaining <SpellLink spell={SPELLS.DISINTEGRATE} />
-                      </>
-                    )}
-                    {clipLogic.thresholdEarlyChainTicks > 1 && clipLogic.allowGoodClipping ? (
-                      <> and you </>
-                    ) : clipLogic.allowGoodClipping ? (
-                      <>You </>
-                    ) : (
-                      <>.</>
-                    )}
-                    {clipLogic.allowGoodClipping && (
-                      <>
-                        should be clipping <SpellLink spell={SPELLS.DISINTEGRATE} /> in favor of{' '}
-                        <TooltipElement content={clippedSpellsContent}>
-                          high-value spells
-                        </TooltipElement>
-                        .
-                      </>
-                    )}
+                    You should never drop ticks of{' '}
+                    <SpellLink spell={SPELLS.MASS_DISINTEGRATE_BUFF} />
                   </p>
-                ) : (
-                  <p>You should not be dropping any ticks here.</p>
-                )}
-              </div>
-            }
-            data={
-              <PassFail
-                value={tickData.regularTicks}
-                total={tickData.totalPossibleRegularTicks}
-                passed={tickData.regularTickRatio > 0.95}
-              />
-            }
-          />
-        )}
-        {tickData.dragonRageTicks > 0 && (
-          <ExplanationAndDataSubSection
-            explanationPercent={EXPLANATION_PERCENTAGE}
-            explanation={
-              <div>
-                <b>
-                  Efficiency during <SpellLink spell={TALENTS_EVOKER.DRAGONRAGE_TALENT} />
-                </b>
-                {clipLogic.thresholdEarlyChainTicksDragonrage > 1 ||
-                clipLogic.allowGoodClippingDragonrage ? (
-                  <p>
-                    During Dragonrage,{' '}
-                    {clipLogic.thresholdEarlyChainTicksDragonrage > 1 && (
-                      <>
-                        you should be early chaining <SpellLink spell={SPELLS.DISINTEGRATE} />
-                      </>
-                    )}
-                    {clipLogic.thresholdEarlyChainTicksDragonrage > 1 &&
-                    clipLogic.allowGoodClippingDragonrage ? (
-                      <> and you </>
-                    ) : clipLogic.allowGoodClippingDragonrage ? (
-                      <>you </>
-                    ) : (
-                      <>.</>
-                    )}
-                    {clipLogic.allowGoodClippingDragonrage && (
-                      <>
-                        should be clipping <SpellLink spell={SPELLS.DISINTEGRATE} /> in favor of{' '}
-                        <TooltipElement content={clippedSpellsContent}>
-                          high-value spells
-                        </TooltipElement>
-                        .
-                      </>
-                    )}
-                  </p>
-                ) : (
-                  <p>During Dragonrage, you should not be dropping any ticks.</p>
-                )}
-              </div>
-            }
-            data={
-              <PassFail
-                value={tickData.dragonRageTicks}
-                total={tickData.totalPossibleDragonRageTicks}
-                /*customTotal={tickData.totalPossibleDragonRageTicks * 0.75}*/
-                passed={tickData.dragonRageTickRatio > 0.9}
-              />
-            }
-          />
-        )}
-
-        {info.combatant.hasTalent(TALENTS_EVOKER.MASS_DISINTEGRATE_TALENT) && (
-          <ExplanationAndDataSubSection
-            explanationPercent={EXPLANATION_PERCENTAGE}
-            explanation={
-              <div>
-                <b>
-                  Efficiency of <SpellLink spell={SPELLS.MASS_DISINTEGRATE_BUFF} />
-                </b>
-                <p>
-                  You should never drop ticks of <SpellLink spell={SPELLS.MASS_DISINTEGRATE_BUFF} />
-                </p>
-              </div>
-            }
-            data={
-              <PassFail
-                value={tickData.massDisintegrateTicks}
-                total={tickData.totalPossibleMassDisintegrateTicks}
-                passed={
-                  tickData.massDisintegrateTicks === tickData.totalPossibleMassDisintegrateTicks
-                }
-              />
-            }
-          />
-        )}
+                </div>
+              ),
+              performance:
+                tickData.massDisintegrateTicks === tickData.totalPossibleMassDisintegrateTicks
+                  ? QualitativePerformance.Good
+                  : QualitativePerformance.Fail,
+            },
+          ]}
+        />
         {modules.disintegrate.guideSubSection()}
       </SubSection>
     </Section>

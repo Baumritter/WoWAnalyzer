@@ -14,10 +14,12 @@ import {
 } from 'analysis/retail/evoker/shared/modules/normalizers/EssenceBurstCastLinkNormalizer';
 import { AnalysisData } from '../components/ProcAnalysis';
 import { QualitativePerformance } from 'parser/ui/QualitativePerformance';
-import { CastEvaluation } from 'interface/guide/components';
+import { CastEvaluation, StackedBar, StackedBarSegment } from 'interface/guide/components';
+import SpellLink from 'interface/SpellLink';
 
 class EssenceBurst extends Analyzer {
   casts: CastEvaluation[] = [];
+  spenders = { Disintegrate: 0, Pyre: 0 };
   activeStacks = 0;
 
   constructor(options: Options) {
@@ -55,6 +57,9 @@ class EssenceBurst extends Analyzer {
 
   private onEssenceSpend(event: CastEvent) {
     if (isCastFromEB(event)) {
+      if (event.ability.guid === SPELLS.DISINTEGRATE.id) this.spenders.Disintegrate += 1;
+      else this.spenders.Pyre += 1;
+
       this.activeStacks -= 1;
       this.castAnalysis(event.timestamp, QualitativePerformance.Good);
     }
@@ -97,10 +102,41 @@ class EssenceBurst extends Analyzer {
     this.casts.push(castEntry);
   }
 
+  private buildSpenderBar(): StackedBarSegment[] {
+    return [
+      {
+        label: 'Disintegrate',
+        value: this.spenders.Disintegrate,
+        color: 'hsl(190, 70%, 55%)',
+        tooltip: (
+          <>
+            {this.spenders.Disintegrate} <SpellLink spell={SPELLS.ESSENCE_BURST_BUFF} /> spent on{' '}
+            <SpellLink spell={SPELLS.DISINTEGRATE} />
+          </>
+        ),
+      },
+      {
+        label: 'Pyre',
+        value: this.spenders.Pyre,
+        color: 'hsl(20, 70%, 55%)',
+        tooltip: (
+          <>
+            {this.spenders.Pyre} <SpellLink spell={SPELLS.ESSENCE_BURST_BUFF} /> spent on{' '}
+            <SpellLink spell={SPELLS.PYRE} />
+          </>
+        ),
+      },
+    ];
+  }
+
   get procUsageData(): AnalysisData {
     return {
       casts: this.casts,
       spell: SPELLS.ESSENCE_BURST_DEV_BUFF,
+      additionalContent: {
+        title: 'Spender Breakdown',
+        content: <StackedBar segments={this.buildSpenderBar()} />,
+      },
     };
   }
 }
