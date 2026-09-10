@@ -4,11 +4,22 @@ import { TALENTS_EVOKER } from 'common/TALENTS';
 import CombatLogParser from '../../CombatLogParser';
 import SPELLS from 'common/SPELLS';
 
-import { JSX } from 'react';
+import { JSX, ReactNode } from 'react';
 import Spell from 'common/SPELLS/Spell';
-import { WarningIcon } from 'interface/icons';
-import { CastOverview } from 'interface/guide/components';
+import { CastOverview, TipBox } from 'interface/guide/components';
 import { QualitativePerformance } from 'parser/ui/QualitativePerformance';
+import { RoundedPanel } from 'interface/guide/components/GuideDivs';
+
+function Explanation({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div>
+      <div>
+        <strong style={{ fontSize: 16 }}>{title}</strong>
+      </div>
+      {children}
+    </div>
+  );
+}
 
 export function DisintegrateSection({ modules, info }: GuideProps<typeof CombatLogParser>) {
   const tickData = modules.disintegrate.tickData;
@@ -48,151 +59,164 @@ export function DisintegrateSection({ modules, info }: GuideProps<typeof CombatL
           is the main spender of Devastation Evoker. It is the most nuanced spell in the entire kit
           and as such also has a lot of avenues for optimization. The analysis below uses specific,
           agreed upon, terms which are explained here:
-          <ul>
-            <li>
-              <strong>Chaining</strong> - Chaining refers to recasting{' '}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr 1fr',
+              columnGap: '10px',
+              padding: '10px 0px',
+            }}
+          >
+            <Explanation title="Chaining">
+              Chaining refers to recasting
               <SpellLink spell={SPELLS.DISINTEGRATE} /> while already channeling a{' '}
               <SpellLink spell={SPELLS.DISINTEGRATE} /> after the penultimate (second to last) tick
               in order to channel two <SpellLink spell={SPELLS.DISINTEGRATE} /> in a row without
               downtime or losing a tick.
-            </li>
-            <li>
-              <strong>Early Chaining</strong> - Early chaining refers to chaining two{' '}
-              <SpellLink spell={SPELLS.DISINTEGRATE} /> casts before the penultimate tick. This
-              wastes ticks but is occasionally useful.
-            </li>
-            <li>
-              <strong>Clipping</strong> - Clipping refers to interrupting a channel of{' '}
-              <SpellLink spell={SPELLS.DISINTEGRATE} /> early by using another spell.
-            </li>
-            <li>
-              For further information, including which spells you should clip{' '}
-              <SpellLink spell={SPELLS.DISINTEGRATE} /> for, see{' '}
-              <a href="https://www.wowhead.com/guide/classes/evoker/devastation/rotation-cooldowns-pve-dps#advanced-disintegrate-chaining-and-clipping">
-                Disintegrate Chaining and Clipping
-              </a>{' '}
-            </li>
-          </ul>
-          <div>
-            <strong>
-              <WarningIcon /> Clipping is usually a very minor DPS gain, if any at all. The modules
-              below will elaborate whether clipping is relevant. Addtionally it is prefered to chain
-              correctly if clipping incorrectly is likely
-            </strong>
+            </Explanation>
+            <Explanation title="Early Chaining">
+              Early chaining refers to chaining two <SpellLink spell={SPELLS.DISINTEGRATE} /> casts
+              before the penultimate tick. This wastes ticks but is occasionally useful.
+            </Explanation>
+            <Explanation title="Clipping">
+              Clipping refers to interrupting a channel of <SpellLink spell={SPELLS.DISINTEGRATE} />{' '}
+              early by using another spell.
+            </Explanation>
           </div>
+          <TipBox type="warning" title="">
+            Clipping is usually a very minor DPS gain, if any at all. The modules below will
+            elaborate whether clipping is relevant. Addtionally it is prefered to chain correctly if
+            clipping incorrectly is likely
+          </TipBox>
+          <TipBox type="note">
+            For further information, including which spells you should clip{' '}
+            <SpellLink spell={SPELLS.DISINTEGRATE} /> for, see{' '}
+            <a href="https://www.wowhead.com/guide/classes/evoker/devastation/rotation-cooldowns-pve-dps#advanced-disintegrate-chaining-and-clipping">
+              Disintegrate Chaining and Clipping
+            </a>{' '}
+          </TipBox>
         </SubSection>
       </div>
-      <SubSection title="Overall Tick Efficiency">
-        <CastOverview
-          spell={SPELLS.DISINTEGRATE}
-          title=""
-          stats={[
-            {
-              label: 'Basic Tick Efficiency',
-              value: `${tickData.regularTicks}/${tickData.totalPossibleRegularTicks}`,
-              tooltip: (
-                <div>
-                  <b>
-                    Efficiency outside of <SpellLink spell={TALENTS_EVOKER.DRAGONRAGE_TALENT} />
-                  </b>
-                  {clipLogic.thresholdEarlyChainTicks > 1 || clipLogic.allowGoodClipping ? (
-                    <p>
-                      {clipLogic.thresholdEarlyChainTicks > 1 && (
-                        <>
-                          You should be early chaining <SpellLink spell={SPELLS.DISINTEGRATE} />
-                        </>
-                      )}
-                      {clipLogic.thresholdEarlyChainTicks > 1 && clipLogic.allowGoodClipping ? (
-                        <> and you </>
-                      ) : clipLogic.allowGoodClipping ? (
-                        <>You </>
-                      ) : (
-                        <>.</>
-                      )}
-                      {clipLogic.allowGoodClipping && (
-                        <>
-                          should be clipping <SpellLink spell={SPELLS.DISINTEGRATE} /> in favor of:
-                          {clippedSpellsContent}
-                        </>
-                      )}
-                    </p>
-                  ) : (
-                    <p>You should not be dropping any ticks here.</p>
-                  )}
-                </div>
-              ),
-              performance:
-                tickData.regularTicks >= tickData.totalPossibleRegularTicks * 0.95
-                  ? QualitativePerformance.Good
-                  : QualitativePerformance.Fail,
-            },
-            {
-              label: 'Dragonrage Tick Efficiency',
-              value: `${tickData.dragonRageTicks}/${tickData.totalPossibleDragonRageTicks}`,
-              tooltip: (
-                <div>
-                  <b>
-                    Efficiency during <SpellLink spell={TALENTS_EVOKER.DRAGONRAGE_TALENT} />
-                  </b>
-                  {clipLogic.thresholdEarlyChainTicksDragonrage > 1 ||
-                  clipLogic.allowGoodClippingDragonrage ? (
-                    <p>
-                      During Dragonrage,{' '}
-                      {clipLogic.thresholdEarlyChainTicksDragonrage > 1 && (
-                        <>
-                          you should be early chaining <SpellLink spell={SPELLS.DISINTEGRATE} />
-                        </>
-                      )}
-                      {clipLogic.thresholdEarlyChainTicksDragonrage > 1 &&
-                      clipLogic.allowGoodClippingDragonrage ? (
-                        <> and you </>
-                      ) : clipLogic.allowGoodClippingDragonrage ? (
-                        <>you </>
-                      ) : (
-                        <>.</>
-                      )}
-                      {clipLogic.allowGoodClippingDragonrage && (
-                        <>
-                          should be clipping <SpellLink spell={SPELLS.DISINTEGRATE} /> in favor of{' '}
-                          <TooltipElement content={clippedSpellsContent}>
-                            high-value spells
-                          </TooltipElement>
-                          .
-                        </>
-                      )}
-                    </p>
-                  ) : (
-                    <p>During Dragonrage, you should not be dropping any ticks.</p>
-                  )}
-                </div>
-              ),
-              performance:
-                tickData.dragonRageTicks >= tickData.totalPossibleDragonRageTicks * 0.95
-                  ? QualitativePerformance.Good
-                  : QualitativePerformance.Fail,
-            },
-            {
-              label: 'Mass Disintegrate Tick Efficiency',
-              value: `${tickData.massDisintegrateTicks}/${tickData.totalPossibleMassDisintegrateTicks}`,
-              tooltip: (
-                <div>
-                  <b>
-                    Efficiency of <SpellLink spell={SPELLS.MASS_DISINTEGRATE_BUFF} />
-                  </b>
-                  <p>
-                    You should never drop ticks of{' '}
-                    <SpellLink spell={SPELLS.MASS_DISINTEGRATE_BUFF} />
-                  </p>
-                </div>
-              ),
-              performance:
-                tickData.massDisintegrateTicks === tickData.totalPossibleMassDisintegrateTicks
-                  ? QualitativePerformance.Good
-                  : QualitativePerformance.Fail,
-            },
-          ]}
-        />
-        {modules.disintegrate.guideSubSection()}
+      <SubSection title="">
+        <RoundedPanel style={{ marginBottom: '10px' }}>
+          <CastOverview
+            spell={SPELLS.DISINTEGRATE}
+            title="Overall Tick Efficiency"
+            stats={[
+              {
+                label: 'Basic Tick Efficiency',
+                value: `${tickData.regularTicks}/${tickData.totalPossibleRegularTicks}`,
+                tooltip: (
+                  <>
+                    <div>
+                      <strong>
+                        Efficiency outside of <SpellLink spell={TALENTS_EVOKER.DRAGONRAGE_TALENT} />
+                      </strong>
+                    </div>
+                    {clipLogic.thresholdEarlyChainTicks > 1 || clipLogic.allowGoodClipping ? (
+                      <>
+                        {clipLogic.thresholdEarlyChainTicks > 1 && (
+                          <>
+                            You should be early chaining <SpellLink spell={SPELLS.DISINTEGRATE} />
+                          </>
+                        )}
+                        {clipLogic.thresholdEarlyChainTicks > 1 && clipLogic.allowGoodClipping ? (
+                          <> and you </>
+                        ) : clipLogic.allowGoodClipping ? (
+                          <>You </>
+                        ) : (
+                          <>.</>
+                        )}
+                        {clipLogic.allowGoodClipping && (
+                          <>
+                            should be clipping <SpellLink spell={SPELLS.DISINTEGRATE} /> in favor
+                            of:
+                            {clippedSpellsContent}
+                          </>
+                        )}
+                      </>
+                    ) : (
+                      <>You should not be dropping any ticks here.</>
+                    )}
+                  </>
+                ),
+                performance:
+                  tickData.regularTicks >= tickData.totalPossibleRegularTicks * 0.95
+                    ? QualitativePerformance.Good
+                    : QualitativePerformance.Fail,
+              },
+              {
+                label: 'Dragonrage Tick Efficiency',
+                value: `${tickData.dragonRageTicks}/${tickData.totalPossibleDragonRageTicks}`,
+                tooltip: (
+                  <>
+                    <div>
+                      <strong>
+                        Efficiency during <SpellLink spell={TALENTS_EVOKER.DRAGONRAGE_TALENT} />
+                      </strong>
+                    </div>
+                    {clipLogic.thresholdEarlyChainTicksDragonrage > 1 ||
+                    clipLogic.allowGoodClippingDragonrage ? (
+                      <>
+                        During Dragonrage,{' '}
+                        {clipLogic.thresholdEarlyChainTicksDragonrage > 1 && (
+                          <>
+                            you should be early chaining <SpellLink spell={SPELLS.DISINTEGRATE} />
+                          </>
+                        )}
+                        {clipLogic.thresholdEarlyChainTicksDragonrage > 1 &&
+                        clipLogic.allowGoodClippingDragonrage ? (
+                          <> and you </>
+                        ) : clipLogic.allowGoodClippingDragonrage ? (
+                          <>you </>
+                        ) : (
+                          <>.</>
+                        )}
+                        {clipLogic.allowGoodClippingDragonrage && (
+                          <>
+                            should be clipping <SpellLink spell={SPELLS.DISINTEGRATE} /> in favor of{' '}
+                            <TooltipElement content={clippedSpellsContent}>
+                              high-value spells
+                            </TooltipElement>
+                            .
+                          </>
+                        )}
+                      </>
+                    ) : (
+                      <>During Dragonrage, you should not be dropping any ticks.</>
+                    )}
+                  </>
+                ),
+                performance:
+                  tickData.dragonRageTicks >= tickData.totalPossibleDragonRageTicks * 0.95
+                    ? QualitativePerformance.Good
+                    : QualitativePerformance.Fail,
+              },
+              {
+                label: 'Mass Disintegrate Tick Efficiency',
+                value: `${tickData.massDisintegrateTicks}/${tickData.totalPossibleMassDisintegrateTicks}`,
+                tooltip: (
+                  <>
+                    <div>
+                      <strong>
+                        Efficiency of <SpellLink spell={SPELLS.MASS_DISINTEGRATE_BUFF} />
+                      </strong>
+                    </div>
+                    <>
+                      You should never drop ticks of{' '}
+                      <SpellLink spell={SPELLS.MASS_DISINTEGRATE_BUFF} />
+                    </>
+                  </>
+                ),
+                performance:
+                  tickData.massDisintegrateTicks === tickData.totalPossibleMassDisintegrateTicks
+                    ? QualitativePerformance.Good
+                    : QualitativePerformance.Fail,
+              },
+            ]}
+          />
+        </RoundedPanel>
+        {modules.betterDisint.guideSubSection()}
       </SubSection>
     </Section>
   );

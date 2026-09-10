@@ -55,7 +55,6 @@ class Burnout extends Analyzer {
     if (isFromBurnout(event)) {
       this.activeStacks -= 1;
       this.castAnalysis(event.timestamp, QualitativePerformance.Good);
-      console.log(event);
     }
   }
 
